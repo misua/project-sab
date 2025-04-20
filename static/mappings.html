@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Custom Word Mappings Editor</title>
+  <style>
+    body { font-family: sans-serif; margin: 2em; }
+    table { border-collapse: collapse; margin-top: 1em; }
+    th, td { border: 1px solid #ccc; padding: 0.5em 1em; }
+    th { background: #f0f0f0; }
+    input[type=text] { padding: 0.3em; }
+    button { padding: 0.3em 1em; margin-left: 0.3em; }
+    #message { margin-top: 1em; color: green; }
+  </style>
+</head>
+<body>
+  <h2>Custom Word Mappings Editor</h2>
+  <form id="add-form">
+    <input type="text" id="child_word" placeholder="Child's word" required>
+    <input type="text" id="meaning" placeholder="Meaning" required>
+    <button type="submit">Add / Update</button>
+  </form>
+  <div id="message"></div>
+  <table id="mappings-table">
+    <thead>
+      <tr><th>Child's Word</th><th>Meaning</th><th>Action</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <script>
+    async function fetchMappings() {
+      const resp = await fetch('/mappings/');
+      return await resp.json();
+    }
+    async function renderMappings() {
+      const table = document.querySelector('#mappings-table tbody');
+      table.innerHTML = '';
+      const mappings = await fetchMappings();
+      Object.entries(mappings).forEach(([child, meaning]) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${child}</td>
+          <td>${meaning}</td>
+          <td><button onclick="deleteMapping('${child}')">Delete</button></td>
+        `;
+        table.appendChild(row);
+      });
+    }
+    async function addMapping(e) {
+      e.preventDefault();
+      const child_word = document.getElementById('child_word').value.trim();
+      const meaning = document.getElementById('meaning').value.trim();
+      if (!child_word || !meaning) return;
+      const resp = await fetch('/mappings/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ child_word, meaning })
+      });
+      if (resp.ok) {
+        document.getElementById('message').innerText = 'Mapping added/updated!';
+        document.getElementById('add-form').reset();
+        renderMappings();
+      } else {
+        document.getElementById('message').innerText = 'Error adding mapping.';
+      }
+    }
+    async function deleteMapping(child_word) {
+      const resp = await fetch('/mappings/', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ child_word })
+      });
+      if (resp.ok) {
+        document.getElementById('message').innerText = 'Mapping deleted!';
+        renderMappings();
+      } else {
+        document.getElementById('message').innerText = 'Error deleting mapping.';
+      }
+    }
+    document.getElementById('add-form').onsubmit = addMapping;
+    renderMappings();
+  </script>
+</body>
+</html>

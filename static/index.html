@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Speech App Client</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; }
+        #record-btn {
+            font-size: 1.5em;
+            padding: 1.2em 2em;
+            border-radius: 1.5em;
+            background: #1976d2;
+            color: #fff;
+            border: none;
+            margin: 2em 0 1em 0;
+            width: 100%;
+            max-width: 350px;
+            display: block;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        #record-btn.recording {
+            background: #d32f2f;
+        }
+        #record-btn:active {
+            background: #1565c0;
+        }
+        #status {
+            margin-top: 1.5em;
+            font-size: 1.1em;
+            word-break: break-word;
+        }
+        @media (max-width: 600px) {
+            body { margin: 1em; }
+            #record-btn { font-size: 1.2em; padding: 1em; max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <h2>AI Speech App: Audio Uploader</h2>
+    <button id="record-btn">Start Recording</button>
+    <div id="status"></div>
+    <script>
+        let mediaRecorder, audioChunks = [], isRecording = false;
+        const btn = document.getElementById('record-btn');
+        const status = document.getElementById('status');
+
+        btn.onclick = async () => {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                status.innerText = 'Audio recording not supported in this browser or context. Please access this page via http:// or https://, not as a local file.';
+                return;
+            }
+            if (!isRecording) {
+                audioChunks = [];
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const formData = new FormData();
+                    formData.append('file', audioBlob, 'audio.webm');
+                    status.innerText = 'Uploading...';
+                    try {
+                        const resp = await fetch('/upload-audio/', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const data = await resp.json();
+                        status.innerText = 'Transcript: ' + (data.result.transcript || '[none]') + (data.result.meaning ? `\nMeaning: ${data.result.meaning}` : '');
+                    } catch (e) {
+                        status.innerText = 'Upload failed.';
+                    }
+                    btn.classList.remove('recording');
+                };
+                mediaRecorder.start();
+                btn.innerText = 'Stop Recording';
+                btn.classList.add('recording');
+                status.innerText = 'Recording...';
+                isRecording = true;
+            } else {
+                mediaRecorder.stop();
+                btn.innerText = 'Start Recording';
+                btn.classList.remove('recording');
+                isRecording = false;
+            }
+        };
+    </script>
+</body>
+</html>

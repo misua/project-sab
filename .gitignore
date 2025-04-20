@@ -1,0 +1,17 @@
+# Python virtual environment
+venv/
+
+# Python cache
+__pycache__/
+
+# Uploaded audio files (privacy, size)
+audio_uploads/
+
+# SSL certificate and private key (security)
+key.pem
+cert.pem
+
+# OS/Editor files
+.DS_Store
+Thumbs.db
+*.swp
