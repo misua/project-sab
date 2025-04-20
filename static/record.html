@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Record Audio for Sab or Chaz</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; }
+        .container { max-width: 400px; margin: auto; }
+        label { font-size: 1.1em; margin-right: 1em; }
+        select, button { font-size: 1.2em; margin-bottom: 1.5em; }
+        #record-btn {
+            font-size: 1.5em;
+            padding: 1.2em 2em;
+            border-radius: 1.5em;
+            background: #1976d2;
+            color: #fff;
+            border: none;
+            margin: 2em 0 1em 0;
+            width: 100%;
+            max-width: 350px;
+            display: block;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: background 0.2s;
+        }
+        #record-btn.recording {
+            background: #d32f2f;
+        }
+        #record-btn:active {
+            background: #1565c0;
+        }
+        #status {
+            margin-top: 1.5em;
+            font-size: 1.1em;
+            word-break: break-word;
+            min-height: 2em;
+        }
+        @media (max-width: 600px) {
+            body { margin: 1em; }
+            #record-btn { font-size: 1.2em; padding: 1em; max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Record Audio for Sab or Chaz</h2>
+    <label for="child">Choose child:</label>
+    <select id="child">
+        <option value="sab">Sab</option>
+        <option value="chaz">Chaz</option>
+    </select>
+    <button id="record-btn">Start Recording</button>
+    <div id="status"></div>
+</div>
+<script>
+let mediaRecorder, audioChunks = [], isRecording = false;
+const btn = document.getElementById('record-btn');
+const status = document.getElementById('status');
+const childSel = document.getElementById('child');
+
+btn.onclick = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        status.innerText = 'Audio recording not supported in this browser or context.';
+        return;
+    }
+    if (!isRecording) {
+        audioChunks = [];
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.onstop = async () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'audio.webm');
+            formData.append('child', childSel.value);
+            status.innerText = 'Uploading...';
+            btn.disabled = true;
+            try {
+                const resp = await fetch('/upload-recording/', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (resp.ok) {
+                    status.innerText = 'Upload complete!';
+                } else {
+                    status.innerText = 'Upload failed.';
+                }
+            } catch (e) {
+                status.innerText = 'Upload failed.';
+            }
+            btn.classList.remove('recording');
+            btn.disabled = false;
+        };
+        mediaRecorder.start();
+        btn.innerText = 'Stop Recording';
+        btn.classList.add('recording');
+        status.innerText = 'Recording...';
+        isRecording = true;
+    } else {
+        mediaRecorder.stop();
+        btn.innerText = 'Start Recording';
+        btn.classList.remove('recording');
+        isRecording = false;
+    }
+};
+</script>
+</body>
+</html>

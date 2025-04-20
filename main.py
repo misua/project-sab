@@ -84,6 +84,10 @@ def index_html():
 def mappings_html():
     return FileResponse("static/mappings.html")
 
+@app.get("/record.html")
+def get_record_page():
+    return FileResponse("static/record.html")
+
 @app.get("/mappings/")
 def get_mappings():
     return custom_dict
@@ -108,6 +112,24 @@ async def delete_mapping(request: Request):
         save_mappings(custom_dict)
         return {"status": "ok"}
     return JSONResponse({"error": "Not found"}, status_code=404)
+
+@app.post("/upload-recording/")
+async def upload_recording(file: UploadFile = File(...), child: str = Form(...)):
+    """
+    Receives an audio file and a child selection (sab/chaz), saves under respective folder.
+    """
+    folder = os.path.join("audio_uploads", child)
+    os.makedirs(folder, exist_ok=True)
+    filename = file.filename
+    # Avoid overwriting: add a timestamp
+    import time
+    ts = int(time.time() * 1000)
+    filename = f"{ts}_{filename}"
+    file_location = os.path.join(folder, filename)
+    with open(file_location, "wb") as f:
+        content = await file.read()
+        f.write(content)
+    return {"status": "ok", "filename": filename}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
